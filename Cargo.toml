@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = []
+members = ["cli"]
 
 [workspace.lints]
 clippy = { pedantic = "warn" }

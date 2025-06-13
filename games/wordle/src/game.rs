@@ -1,65 +1,109 @@
+use std::marker::PhantomData;
+
 use crate::MAX_GUESSES;
 use crate::{dict::Dictionary, guess::Guess, word::Word};
 
-/// The possible states a Wordle game may be in.
-pub enum Game<'a> {
-    Active(ActiveGame<'a>),
-    Outcome(GameOutcome),
+mod private {
+    /// A un-implementable marker trait to make [`State`](super::State) a sealed trait
+    pub trait Sealed {}
 }
 
-/// A game that is currently active/in-progress.
-#[derive(Clone)]
-pub struct ActiveGame<'d> {
+/// A marker trait to implement the type-state pattern for [`Game`]
+pub trait State: private::Sealed {}
+
+/// State marker indicating that a [`Game`] is still playing/in-progress
+pub enum Playing {}
+impl private::Sealed for Playing {}
+impl State for Playing {}
+
+/// State marker indicating that a [`Game`] is over and additional guesses cannot be made
+pub enum Over {}
+impl private::Sealed for Over {}
+impl State for Over {}
+
+/// A Wordle game, either in-progress or complete
+pub struct Game<'d, S: State> {
+    /// The dictionary of [`Words`](Word) that are allowed to be guesses
     dictionary: &'d dyn Dictionary,
+
+    /// The solution to the puzzle the player is attempting to guess
     solution: Word,
+
+    /// Guesses the player has made (so far)
     guesses: Vec<Guess>,
+
+    /// The state the game is in ([`Playing`] or [`Over`])
+    state: PhantomData<S>,
 }
 
-impl<'a> ActiveGame<'a> {
-    /// Creates a new game using a borrowed dictionary.
-    #[must_use]
-    pub fn new(dictionary: &'a dyn Dictionary) -> Self {
-        ActiveGame {
-            dictionary,
-            solution: dictionary.random_solution(),
-            guesses: Vec::with_capacity(MAX_GUESSES),
-        }
-    }
-
-    /// Makes a guess and returns the result.
-    #[must_use]
-    pub fn guess(mut self, guess: Word) -> Game<'a> {
-        if self.dictionary.contains(&guess) {
-            self.guesses.push(Guess::new(&self.solution, guess));
-        }
-
-        if self.guesses.last().is_some_and(Guess::is_correct) || self.guesses.len() >= MAX_GUESSES {
-            Game::Outcome(GameOutcome {
-                solution: self.solution,
-                guesses: self.guesses.into_boxed_slice(),
-            })
-        } else {
-            Game::Active(self)
-        }
-    }
-
+impl<S: State> Game<'_, S> {
+    /// Returns a list of guesses the player has made (so far)
     #[must_use]
     pub fn guesses(&self) -> &[Guess] {
         &self.guesses
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GameOutcome {
-    pub solution: Word,
-    pub guesses: Box<[Guess]>,
+impl Game<'_, Over> {
+    /// Returns the solution to the puzzle
+    #[must_use]
+    pub fn solution(&self) -> &Word {
+        &self.solution
+    }
+
+    /// Returns whether the player successfully guessed the solution
+    pub fn won(&self) -> bool {
+        self.guesses().last().is_some_and(Guess::is_correct)
+    }
 }
 
-impl GameOutcome {
-    #[must_use]
-    pub fn won(&self) -> bool {
-        self.guesses.last().is_some_and(Guess::is_correct)
+impl<'d> Game<'d, Playing> {
+    /// Creates a new game instance from a dictionary of allowed [`Words`](Word).
+    pub fn new(dictionary: &'d dyn Dictionary) -> Self {
+        Game {
+            dictionary,
+            solution: dictionary.random_solution(),
+            guesses: Vec::with_capacity(MAX_GUESSES),
+            state: PhantomData,
+        }
     }
+
+    /// Attempts to submit a [`Word`] as a guess, returning the resulting `Game` state
+    /// discriminated by a tag indicating whether the guess was succesfully submitted
+    pub fn guess(mut self, word: Word) -> GuessResult<'d> {
+        if !self.dictionary.contains(&word) {
+            return GuessResult::InvalidGuess(self);
+        }
+
+        self.guesses.push(Guess::new(&self.solution, word));
+
+        if self.guesses().last().is_some_and(Guess::is_correct) || self.guesses.len() >= MAX_GUESSES
+        {
+            GuessResult::Over(Game {
+                dictionary: self.dictionary,
+                solution: self.solution,
+                guesses: self.guesses,
+                state: PhantomData,
+            })
+        } else {
+            GuessResult::Playing(self)
+        }
+    }
+}
+
+/// The possible outcomes from attempting to submit a guess with [`Game::guess`]
+pub enum GuessResult<'d> {
+    /// The guess was successfully submitted, but it was not the solution. The player still has
+    /// more opportunities to guess the solution
+    Playing(Game<'d, Playing>),
+
+    /// The guess was invalid because it is not in the game's dictionary. The player still has more
+    /// opportunities to guess the solution
+    InvalidGuess(Game<'d, Playing>),
+
+    /// The guess was successfully submitted and the game is over, either because the solution was
+    /// guessed or the player ran out of guesses
+    Over(Game<'d, Over>),
 }
 
 #[cfg(test)]
@@ -85,7 +129,7 @@ mod tests {
     #[test]
     fn it_results_in_win_when_correct_guess_made() {
         let guess = Word::new(SOLUTION).unwrap();
-        let Game::Outcome(outcome) = ActiveGame::new(&FakeDict).guess(guess) else {
+        let GuessResult::Over(outcome) = Game::new(&FakeDict).guess(guess) else {
             panic!("Should result in outcome when solution is guessed")
         };
 
@@ -94,17 +138,17 @@ mod tests {
 
     #[test]
     fn it_results_in_loss_when_run_out_of_guesses() {
-        let mut game = ActiveGame::new(&FakeDict);
+        let mut game = Game::new(&FakeDict);
 
         for guess in &WORDS[..5] {
-            let Game::Active(g) = game.guess(Word::new(guess).unwrap()) else {
+            let GuessResult::Playing(g) = game.guess(Word::new(guess).unwrap()) else {
                 panic!("Should result in active game when still guesses left");
             };
 
             game = g;
         }
 
-        let Game::Outcome(outcome) = game.guess(Word::new(WORDS[5]).unwrap()) else {
+        let GuessResult::Over(outcome) = game.guess(Word::new(WORDS[5]).unwrap()) else {
             panic!("Should result in outcome when no guesses left");
         };
 

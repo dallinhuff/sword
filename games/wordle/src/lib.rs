@@ -8,5 +8,8 @@ pub mod game;
 pub mod guess;
 pub mod word;
 
+pub use game::Game;
+pub use word::Word;
+
 const WORD_LENGTH: usize = 5;
 const MAX_GUESSES: usize = 6;

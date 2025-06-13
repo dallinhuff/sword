@@ -223,6 +223,7 @@ name = "sword-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "sword-wordle",
 ]
 
 [[package]]

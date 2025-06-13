@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.39", features = ["derive"] }
+sword-wordle = { path = "../games/wordle" }
 
 [lints]
 workspace = true

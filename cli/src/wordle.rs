@@ -1,7 +1,7 @@
 use std::io::{BufRead as _, Write as _};
 
 use clap::{Parser, Subcommand};
-use sword_wordle::{Game, Word, dict::SliceDict, game::GuessResult};
+use sword_wordle::{Game, Word, game::GuessResult};
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -18,8 +18,7 @@ enum Command {
 pub fn run(args: &Args) -> std::io::Result<()> {
     match args.command {
         Command::Play => {
-            let dictionary = SliceDict::default();
-            let mut game = sword_wordle::game::GuessResult::Playing(Game::new(&dictionary));
+            let mut game = GuessResult::Playing(Game::default());
 
             while let GuessResult::Playing(g) = game {
                 println!("----------------------");

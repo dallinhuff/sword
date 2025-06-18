@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::MAX_GUESSES;
+use crate::{MAX_GUESSES, dict};
 use crate::{dict::Dictionary, guess::Guess, word::Word};
 
 mod private {
@@ -34,6 +34,12 @@ pub struct Game<'d, S: State> {
 
     /// The state the game is in ([`Playing`] or [`Over`])
     state: PhantomData<S>,
+}
+
+impl Default for Game<'_, Playing> {
+    fn default() -> Self {
+        Self::new(dict::default())
+    }
 }
 
 impl<S: State> Game<'_, S> {

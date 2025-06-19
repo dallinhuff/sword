@@ -1,5 +1,6 @@
 use crate::WORD_LENGTH;
 use crate::word::Word;
+use colored::Colorize as _;
 
 /// An indicator of whether a letter in a guess is in the word.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,22 +81,15 @@ impl Guess {
     }
 }
 
-impl std::fmt::Display for Placement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Placement::Correct => write!(f, "🟩"),
-            Placement::Misplaced => write!(f, "🟨"),
-            Placement::Incorrect => write!(f, "⬜"),
-        }
-    }
-}
-
 impl std::fmt::Display for Guess {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ", self.word)?;
-
-        for p in self.result {
-            write!(f, " {p}")?;
+        for (i, placement) in self.result.iter().enumerate() {
+            let letter = self.word.as_str()[i..=i].bold();
+            match placement {
+                Placement::Incorrect => write!(f, "{}", letter.white().dimmed())?,
+                Placement::Misplaced => write!(f, "{}", letter.yellow())?,
+                Placement::Correct => write!(f, "{}", letter.green())?,
+            }
         }
 
         Ok(())

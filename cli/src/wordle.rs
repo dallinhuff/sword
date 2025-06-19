@@ -25,6 +25,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
                 for guess in g.guesses() {
                     println!("{guess}");
                 }
+                println!("{}", g.alphabet());
                 print!("Enter guess: ");
                 std::io::stdout().flush()?;
 

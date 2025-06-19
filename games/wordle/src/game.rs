@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use crate::alphabet::Alphabet;
 use crate::{MAX_GUESSES, dict};
 use crate::{dict::Dictionary, guess::Guess, word::Word};
 
@@ -32,6 +33,8 @@ pub struct Game<'d, S: State> {
     /// Guesses the player has made (so far)
     guesses: Vec<Guess>,
 
+    alphabet: Alphabet,
+
     /// The state the game is in ([`Playing`] or [`Over`])
     state: PhantomData<S>,
 }
@@ -47,6 +50,11 @@ impl<S: State> Game<'_, S> {
     #[must_use]
     pub fn guesses(&self) -> &[Guess] {
         &self.guesses
+    }
+
+    #[must_use]
+    pub const fn alphabet(&self) -> &Alphabet {
+        &self.alphabet
     }
 }
 
@@ -70,6 +78,7 @@ impl<'d> Game<'d, Playing> {
             dictionary,
             solution: dictionary.random_solution(),
             guesses: Vec::with_capacity(MAX_GUESSES),
+            alphabet: Alphabet::new(),
             state: PhantomData,
         }
     }
@@ -81,7 +90,9 @@ impl<'d> Game<'d, Playing> {
             return GuessResult::InvalidGuess(self);
         }
 
-        self.guesses.push(Guess::new(&self.solution, word));
+        let guess = Guess::new(&self.solution, word);
+        self.alphabet.report_guess(&guess);
+        self.guesses.push(guess);
 
         if self.guesses().last().is_some_and(Guess::is_correct) || self.guesses.len() >= MAX_GUESSES
         {
@@ -89,6 +100,7 @@ impl<'d> Game<'d, Playing> {
                 dictionary: self.dictionary,
                 solution: self.solution,
                 guesses: self.guesses,
+                alphabet: self.alphabet,
                 state: PhantomData,
             })
         } else {

@@ -3,16 +3,16 @@ use crate::word::Word;
 use colored::Colorize as _;
 
 /// An indicator of whether a letter in a guess is in the word.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Placement {
     /// The letter is not in the solution.
-    Incorrect,
+    Incorrect = 0,
 
     /// The letter is in the solution, but not in the given spot.
-    Misplaced,
+    Misplaced = 1,
 
     /// The letter is in the solution in the given spot.
-    Correct,
+    Correct = 2,
 }
 
 /// A guess that was submitted to a game.

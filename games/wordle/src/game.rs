@@ -1,132 +1,53 @@
-use std::marker::PhantomData;
+use crate::dict::Dictionary;
+use crate::{Word, dict};
 
-use crate::alphabet::Alphabet;
-use crate::{MAX_GUESSES, dict};
-use crate::{dict::Dictionary, guess::Guess, word::Word};
+mod outcome;
+pub use outcome::GameOutcome;
 
-mod private {
-    /// A un-implementable marker trait to make [`State`](super::State) a sealed trait
-    pub trait Sealed {}
+mod playing;
+pub use playing::PlayingGame;
+
+/// States a wordle game may be in
+#[derive(Clone)]
+pub enum Game<'d> {
+    /// The game is currently in progress. The player has not yet guessed the solution,
+    /// but may make another guess.
+    Playing(PlayingGame<'d>),
+
+    /// The game is over, either because the player correctly guessed the solution or
+    /// the player ran out of guesses.
+    Over(GameOutcome),
+
+    /// The game is currently in progress, but the previous action would have resulted in an
+    /// invalid state if it had been applied.
+    Invalid {
+        reason: GameError,
+        previous: PlayingGame<'d>,
+    },
 }
 
-/// A marker trait to implement the type-state pattern for [`Game`]
-pub trait State: private::Sealed {}
-
-/// State marker indicating that a [`Game`] is still playing/in-progress
-pub enum Playing {}
-impl private::Sealed for Playing {}
-impl State for Playing {}
-
-/// State marker indicating that a [`Game`] is over and additional guesses cannot be made
-pub enum Over {}
-impl private::Sealed for Over {}
-impl State for Over {}
-
-/// A Wordle game, either in-progress or complete
-pub struct Game<'d, S: State> {
-    /// The dictionary of [`Words`](Word) that are allowed to be guesses
-    dictionary: &'d dyn Dictionary,
-
-    /// The solution to the puzzle the player is attempting to guess
-    solution: Word,
-
-    /// Guesses the player has made (so far)
-    guesses: Vec<Guess>,
-
-    alphabet: Alphabet,
-
-    /// The state the game is in ([`Playing`] or [`Over`])
-    state: PhantomData<S>,
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum GameError {
+    #[error("Invalid word: {0}")]
+    InvalidWord(Word),
 }
 
-impl Default for Game<'_, Playing> {
+impl<'d> Game<'d> {
+    pub fn new(dictionary: &'d dyn Dictionary) -> Self {
+        Self::Playing(PlayingGame::new(dictionary))
+    }
+}
+
+impl Default for Game<'_> {
     fn default() -> Self {
         Self::new(dict::default())
     }
 }
 
-impl<S: State> Game<'_, S> {
-    /// Returns a list of guesses the player has made (so far)
-    #[must_use]
-    pub fn guesses(&self) -> &[Guess] {
-        &self.guesses
-    }
-
-    #[must_use]
-    pub const fn alphabet(&self) -> &Alphabet {
-        &self.alphabet
-    }
-}
-
-impl Game<'_, Over> {
-    /// Returns the solution to the puzzle
-    #[must_use]
-    pub fn solution(&self) -> &Word {
-        &self.solution
-    }
-
-    /// Returns whether the player successfully guessed the solution
-    pub fn won(&self) -> bool {
-        self.guesses().last().is_some_and(Guess::is_correct)
-    }
-}
-
-impl<'d> Game<'d, Playing> {
-    /// Creates a new game instance from a dictionary of allowed [`Words`](Word).
-    pub fn new(dictionary: &'d dyn Dictionary) -> Self {
-        Game {
-            dictionary,
-            solution: dictionary.random_solution(),
-            guesses: Vec::with_capacity(MAX_GUESSES),
-            alphabet: Alphabet::new(),
-            state: PhantomData,
-        }
-    }
-
-    /// Attempts to submit a [`Word`] as a guess, returning the resulting `Game` state
-    /// discriminated by a tag indicating whether the guess was succesfully submitted
-    pub fn guess(mut self, word: Word) -> GuessResult<'d> {
-        if !self.dictionary.contains(&word) {
-            return GuessResult::InvalidGuess(self);
-        }
-
-        let guess = Guess::new(&self.solution, word);
-        self.alphabet.report_guess(&guess);
-        self.guesses.push(guess);
-
-        if self.guesses().last().is_some_and(Guess::is_correct) || self.guesses.len() >= MAX_GUESSES
-        {
-            GuessResult::Over(Game {
-                dictionary: self.dictionary,
-                solution: self.solution,
-                guesses: self.guesses,
-                alphabet: self.alphabet,
-                state: PhantomData,
-            })
-        } else {
-            GuessResult::Playing(self)
-        }
-    }
-}
-
-/// The possible outcomes from attempting to submit a guess with [`Game::guess`]
-pub enum GuessResult<'d> {
-    /// The guess was successfully submitted, but it was not the solution. The player still has
-    /// more opportunities to guess the solution
-    Playing(Game<'d, Playing>),
-
-    /// The guess was invalid because it is not in the game's dictionary. The player still has more
-    /// opportunities to guess the solution
-    InvalidGuess(Game<'d, Playing>),
-
-    /// The guess was successfully submitted and the game is over, either because the solution was
-    /// guessed or the player ran out of guesses
-    Over(Game<'d, Over>),
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Word;
 
     const WORDS: [&str; 7] = [
         "audio", "crane", "crabs", "crash", "candy", "skill", "scale",
@@ -147,7 +68,7 @@ mod tests {
     #[test]
     fn it_results_in_win_when_correct_guess_made() {
         let guess = Word::new(SOLUTION).unwrap();
-        let GuessResult::Over(outcome) = Game::new(&FakeDict).guess(guess) else {
+        let Game::Over(outcome) = PlayingGame::new(&FakeDict).guess(guess) else {
             panic!("Should result in outcome when solution is guessed")
         };
 
@@ -156,21 +77,19 @@ mod tests {
 
     #[test]
     fn it_results_in_loss_when_run_out_of_guesses() {
-        let mut game = Game::new(&FakeDict);
+        let mut game = PlayingGame::new(&FakeDict);
 
         for guess in &WORDS[..5] {
-            let GuessResult::Playing(g) = game.guess(Word::new(guess).unwrap()) else {
+            let Game::Playing(g) = game.guess(Word::new(guess).unwrap()) else {
                 panic!("Should result in active game when still guesses left");
             };
 
             game = g;
         }
 
-        let GuessResult::Over(outcome) = game.guess(Word::new(WORDS[5]).unwrap()) else {
+        let Game::Over(outcome) = game.guess(Word::new(WORDS[5]).unwrap()) else {
             panic!("Should result in outcome when no guesses left");
         };
-
-        println!("{}", outcome.guesses.last().unwrap());
 
         assert!(
             !outcome.won(),

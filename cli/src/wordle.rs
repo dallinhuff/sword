@@ -1,7 +1,7 @@
 use std::io::{BufRead as _, Write as _};
 
 use clap::{Parser, Subcommand};
-use sword_wordle::{Game, Word, game::GuessResult};
+use sword_wordle::{Game, Word};
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -18,9 +18,8 @@ enum Command {
 pub fn run(args: &Args) -> std::io::Result<()> {
     match args.command {
         Command::Play => {
-            let mut game = GuessResult::Playing(Game::default());
-
-            while let GuessResult::Playing(g) = game {
+            let mut game = Game::default();
+            while let Game::Playing(g) = game {
                 println!("----------------------");
                 for guess in g.guesses() {
                     println!("{guess}");
@@ -34,23 +33,22 @@ pub fn run(args: &Args) -> std::io::Result<()> {
                 println!();
 
                 let Ok(guess) = Word::new(&input) else {
-                    eprintln!("Bruh, that's not a real word");
-                    game = GuessResult::Playing(g);
+                    eprintln!("Invalid word: {input}");
+                    game = Game::Playing(g);
                     continue;
                 };
 
                 game = match g.guess(guess) {
-                    GuessResult::InvalidGuess(game) => {
-                        eprintln!("Bruh, that's not a real word");
-                        GuessResult::Playing(game)
+                    Game::Invalid { previous, reason } => {
+                        eprintln!("{reason}");
+                        Game::Playing(previous)
                     }
-                    GuessResult::Playing(game) => GuessResult::Playing(game),
-                    GuessResult::Over(game) => GuessResult::Over(game),
+                    game => game,
                 }
             }
 
-            let GuessResult::Over(outcome) = game else {
-                panic!("Bruh");
+            let Game::Over(outcome) = game else {
+                unreachable!();
             };
 
             println!("----------------------");

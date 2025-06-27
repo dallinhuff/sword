@@ -1,26 +1,19 @@
-use crate::{
-    Game, MAX_GUESSES, Word,
-    alphabet::Alphabet,
-    dict::Dictionary,
-    game::{GameError, GameOutcome},
-    guess::Guess,
-};
+use crate::{Game, MAX_GUESSES, Word, alphabet::Alphabet, game::GameOutcome, guess::Guess};
 
 /// A game currently in-progress.
 #[derive(Clone)]
-pub struct PlayingGame<'d> {
-    dictionary: &'d dyn Dictionary,
+pub struct PlayingGame {
     solution: Word,
     guesses: Vec<Guess>,
     alphabet: Alphabet,
 }
 
-impl<'d> PlayingGame<'d> {
+impl PlayingGame {
     /// Creates a new game from a [`Dictionary`].
-    pub fn new(dictionary: &'d dyn Dictionary) -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
-            dictionary,
-            solution: dictionary.random_solution(),
+            solution: Word::random(),
             guesses: Vec::with_capacity(MAX_GUESSES),
             alphabet: Alphabet::new(),
         }
@@ -42,14 +35,7 @@ impl<'d> PlayingGame<'d> {
 
     /// Makes a guess using a given [`Word`].
     /// Returns the resulting [`Game`] state.
-    pub fn guess(mut self, word: Word) -> Game<'d> {
-        if !self.dictionary.contains(&word) {
-            return Game::Invalid {
-                reason: GameError::InvalidWord(word),
-                previous: self,
-            };
-        }
-
+    pub fn guess(mut self, word: Word) -> Game {
         let guess = Guess::new(&self.solution, word);
         self.alphabet.report_guess(&guess);
         self.guesses.push(guess);
@@ -62,5 +48,11 @@ impl<'d> PlayingGame<'d> {
         }
 
         Game::Playing(self)
+    }
+}
+
+impl Default for PlayingGame {
+    fn default() -> Self {
+        Self::new()
     }
 }

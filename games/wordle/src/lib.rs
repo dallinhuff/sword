@@ -4,7 +4,6 @@
 //! allowing some degree of customization of behavior.
 
 pub mod alphabet;
-pub mod dict;
 pub mod game;
 pub mod guess;
 pub mod word;

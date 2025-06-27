@@ -1,4 +1,9 @@
 use crate::WORD_LENGTH;
+use rand::seq::IndexedRandom as _;
+use std::sync::LazyLock;
+
+mod bank;
+static BANK: LazyLock<bank::WordBank> = LazyLock::new(bank::WordBank::new);
 
 /// A sequence of letters that may be submitted as a guess for a game.
 ///
@@ -15,6 +20,8 @@ pub enum WordError {
     InvalidLen,
     #[error("Word must only contain ascii letters")]
     InvalidLetters,
+    #[error("Word must be in dictionary")]
+    NotInDictionary,
 }
 
 impl Word {
@@ -26,7 +33,28 @@ impl Word {
     /// Returns a [`WordError::InvalidLen`] if the string is not the correct length.
     ///
     /// Returns a [`WordError::InvalidLetters`] if the string contains a non-ascii letter.
+    ///
+    /// Returns a [`WordError::NotInDictionary`] if the string is not in the dictionary.
     pub fn new(word: &str) -> Result<Self, WordError> {
+        let word = Self::new_no_dict(word)?;
+        if BANK.contains(word) {
+            Ok(word)
+        } else {
+            Err(WordError::NotInDictionary)
+        }
+    }
+
+    /// Generates a random word (for use as a solution in a game).
+    #[must_use]
+    pub fn random() -> Self {
+        let Some(word) = BANK.solutions.choose(&mut rand::rng()).copied() else {
+            unreachable!("BANK solutions should never be empty")
+        };
+
+        word
+    }
+
+    fn new_no_dict(word: &str) -> Result<Self, WordError> {
         let bytes = word.trim().as_bytes();
 
         if bytes.len() != WORD_LENGTH {

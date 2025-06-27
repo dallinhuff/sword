@@ -38,13 +38,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
                     continue;
                 };
 
-                game = match g.guess(guess) {
-                    Game::Invalid { previous, reason } => {
-                        eprintln!("{reason}");
-                        Game::Playing(previous)
-                    }
-                    game => game,
-                }
+                game = g.guess(guess);
             }
 
             let Game::Over(outcome) = game else {

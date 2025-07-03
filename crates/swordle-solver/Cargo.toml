@@ -1,0 +1,10 @@
+[package]
+name = "swordle-solver"
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+swordle.workspace = true

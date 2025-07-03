@@ -1,11 +1,15 @@
-use crate::{Game, MAX_GUESSES, Word, alphabet::Alphabet, game::GameOutcome, guess::Guess};
+use super::{Game, GameOutcome};
+use crate::{Guess, Word, letter_bank::LetterBank};
+
+const MAX_GUESSES: usize = 6;
 
 /// A game currently in-progress.
+/// When in this state, the player has not yet guessed the solution.
 #[derive(Clone)]
 pub struct PlayingGame {
     solution: Word,
     guesses: Vec<Guess>,
-    alphabet: Alphabet,
+    letter_bank: LetterBank,
 }
 
 impl PlayingGame {
@@ -15,7 +19,7 @@ impl PlayingGame {
         Self {
             solution: Word::random(),
             guesses: Vec::with_capacity(MAX_GUESSES),
-            alphabet: Alphabet::new(),
+            letter_bank: LetterBank::new(),
         }
     }
 
@@ -25,26 +29,21 @@ impl PlayingGame {
         &self.guesses
     }
 
-    /// Returns the alphabet state of the game, indicating the known letter positions of all
-    /// possible letters (i.e., the state used to display the "keyboard" on the web/original
-    /// wordle)
     #[must_use]
-    pub fn alphabet(&self) -> &Alphabet {
-        &self.alphabet
+    pub fn letter_bank(&self) -> &LetterBank {
+        &self.letter_bank
     }
 
     /// Makes a guess using a given [`Word`].
     /// Returns the resulting [`Game`] state.
     pub fn guess(mut self, word: Word) -> Game {
         let guess = Guess::new(&self.solution, word);
-        self.alphabet.report_guess(&guess);
+        self.letter_bank.report_guess(&guess);
         self.guesses.push(guess);
 
         if self.guesses.last().is_some_and(Guess::is_correct) || self.guesses.len() >= MAX_GUESSES {
-            return Game::Over(GameOutcome {
-                solution: self.solution,
-                guesses: self.guesses.into_boxed_slice(),
-            });
+            let outcome = GameOutcome::new(self.solution, self.guesses.into_boxed_slice());
+            return Game::Over(outcome);
         }
 
         Game::Playing(self)

@@ -1,0 +1,12 @@
+[package]
+name = "swordle"
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+colored.workspace = true
+rand.workspace = true
+thiserror.workspace = true

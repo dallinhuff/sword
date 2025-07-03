@@ -1,13 +1,18 @@
-use crate::{Word, guess::Guess};
+use crate::guess::Guess;
+use crate::word::Word;
 
-/// The resulting outcome after
 #[derive(Debug, Clone)]
 pub struct GameOutcome {
-    pub(super) solution: Word,
-    pub(super) guesses: Box<[Guess]>,
+    solution: Word,
+    guesses: Box<[Guess]>,
 }
 
 impl GameOutcome {
+    #[must_use]
+    pub fn new(solution: Word, guesses: Box<[Guess]>) -> Self {
+        GameOutcome { solution, guesses }
+    }
+
     #[must_use]
     pub fn won(&self) -> bool {
         self.guesses

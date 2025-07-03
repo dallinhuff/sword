@@ -1,16 +1,16 @@
 [workspace]
 resolver = "3"
-members = ["cli", "games/wordle"]
+members = ["crates/swordle", "crates/swordle-analyzer", "crates/swordle-solver"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.88"
 
 [workspace.lints]
 clippy = { pedantic = "warn" }
 
-[package]
-name = "sword"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-
-[lints]
-workspace = true
+[workspace.dependencies]
+swordle = { path = "crates/swordle" }
+colored = "3.0.0"
+rand = "0.9.1"
+thiserror = "2.0.12"

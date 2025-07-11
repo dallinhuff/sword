@@ -5,6 +5,7 @@ mod playing;
 pub use playing::PlayingGame;
 
 /// The states a wordle game may be in.
+#[must_use]
 #[derive(Clone)]
 pub enum Game {
     Playing(PlayingGame),
@@ -12,7 +13,6 @@ pub enum Game {
 }
 
 impl Game {
-    #[must_use]
     pub fn new() -> Self {
         Self::Playing(PlayingGame::new())
     }

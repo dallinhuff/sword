@@ -7,10 +7,7 @@ mod tests;
 pub const WORD_LENGTH: usize = 5;
 
 /// A sequence of letters that may be submitted as a guess for a game.
-///
-/// `Word` ensures that the sequence of letters it contains are syntactically & semantically valid,
-/// but it does not make any guarantees that the word exists in a particular
-/// [`Dictionary`](crate::dict::dictionary).
+#[must_use]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Word([u8; WORD_LENGTH]);
 
@@ -33,7 +30,6 @@ impl Word {
     }
 
     /// Generates a random word (for use as a solution in a game).
-    #[must_use]
     pub fn random() -> Self {
         bank::random_solution()
     }

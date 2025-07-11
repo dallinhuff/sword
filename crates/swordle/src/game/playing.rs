@@ -5,6 +5,7 @@ const MAX_GUESSES: usize = 6;
 
 /// A game currently in-progress.
 /// When in this state, the player has not yet guessed the solution.
+#[must_use]
 #[derive(Clone)]
 pub struct PlayingGame {
     solution: Word,
@@ -14,7 +15,6 @@ pub struct PlayingGame {
 
 impl PlayingGame {
     /// Creates a new game from a [`Dictionary`].
-    #[must_use]
     pub fn new() -> Self {
         Self {
             solution: Word::random(),

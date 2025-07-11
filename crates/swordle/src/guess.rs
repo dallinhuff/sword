@@ -5,6 +5,7 @@ use std::fmt::Display;
 
 const CORRECT_PLACEMENTS: &[Placement; WORD_LENGTH] = &[Placement::Correct; WORD_LENGTH];
 
+#[must_use]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Guess {
     Correct(Word),
@@ -12,7 +13,6 @@ pub enum Guess {
 }
 
 impl Guess {
-    #[must_use]
     pub fn new(solution: &Word, guess: Word) -> Self {
         if solution == &guess {
             return Guess::Correct(guess);

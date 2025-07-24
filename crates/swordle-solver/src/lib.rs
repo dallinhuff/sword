@@ -1,66 +1,60 @@
-use swordle::{Placement, Word, word::WORD_LENGTH};
+use swordle::{Guess, Word};
 
-const STRATEGY: &str = include_str!("../assets/strategy-normal.txt");
+mod strategy;
+pub use strategy::Strategy;
 
 #[must_use]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
+pub enum SolverResult {
+    Solving(Solver),
+    Solved {
+        solution: Word,
+        guesses: Box<[Guess]>,
+    },
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
 pub struct Solver {
-    row_offset: usize,
-    num_guesses: usize,
+    cursor: strategy::Cursor,
+    guesses: Vec<Guess>,
 }
 
 impl Solver {
-    pub fn new() -> Self {
+    pub fn new(strategy: Strategy) -> Self {
         Solver {
-            row_offset: 0,
-            num_guesses: 0,
+            cursor: strategy::Cursor::new(strategy),
+            guesses: Vec::with_capacity(5),
         }
     }
 
-    const fn col_offset(&self) -> usize {
-        ((WORD_LENGTH + 1) * 2 + 1) * self.num_guesses
-    }
-
-    fn search_space(&self) -> impl std::iter::Iterator<Item = &'static str> {
-        STRATEGY.lines().skip(self.row_offset)
-    }
-
-    #[allow(clippy::missing_panics_doc)]
     pub fn suggest(&self) -> Word {
-        self.search_space()
-            .map(|l| &l[self.col_offset()..=self.col_offset() + WORD_LENGTH])
-            .map(Word::new)
-            .find_map(Result::ok)
-            .expect("all lines of `STRATEGY` are valid words")
+        self.cursor.suggest()
     }
 
-    pub fn report(self, outcome: [Placement; WORD_LENGTH]) -> Self {
-        let search_str: String = outcome
-            .iter()
-            .map(|p| match p {
-                Placement::Incorrect => 'B',
-                Placement::Misplaced => 'Y',
-                Placement::Correct => 'G',
-            })
-            .chain((self.num_guesses + 1).to_string().chars().take(1))
-            .collect();
-
-        let advance_by = self
-            .search_space()
-            .enumerate()
-            .find(|(_, l)| l.contains(&search_str))
-            .map_or(0, |(i, _)| i);
-
-        Solver {
-            num_guesses: self.num_guesses + 1,
-            row_offset: self.row_offset + advance_by,
+    pub fn report(mut self, guess: Guess) -> SolverResult {
+        match guess {
+            Guess::Correct(word) => {
+                self.guesses.push(guess);
+                SolverResult::Solved {
+                    solution: word,
+                    guesses: self.guesses.into_boxed_slice(),
+                }
+            }
+            Guess::Incorrect(word, placements) => {
+                let cursor = self.cursor.report(placements);
+                self.guesses.push(guess);
+                if let Some(cursor) = cursor {
+                    self.cursor = cursor;
+                    SolverResult::Solving(self)
+                } else {
+                    SolverResult::Solved {
+                        solution: word,
+                        guesses: self.guesses.into_boxed_slice(),
+                    }
+                }
+            }
         }
-    }
-}
-
-impl Default for Solver {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -70,46 +64,30 @@ mod tests {
 
     #[test]
     fn suggest_works() {
-        let solver = Solver::new();
-        let word = solver.suggest();
-        assert_eq!(word.as_str(), "salet");
+        let mut solver = Solver::new(Strategy::Normal);
 
-        let solver = solver.report([Placement::Incorrect; 5]);
-        let word = solver.suggest();
-        assert_eq!(word.as_str(), "courd");
+        let suggestions = ["salet", "courd", "gimpy", "funky"];
+        let solution = Word::new("hunky").unwrap();
 
-        let solver = solver.report([
-            Placement::Incorrect,
-            Placement::Incorrect,
-            Placement::Misplaced,
-            Placement::Incorrect,
-            Placement::Incorrect,
-        ]);
-        let word = solver.suggest();
-        assert_eq!(word.as_str(), "gimpy");
+        for suggestion in suggestions {
+            let word = solver.suggest();
+            assert_eq!(word.as_str(), suggestion);
 
-        let solver = solver.report([
-            Placement::Incorrect,
-            Placement::Incorrect,
-            Placement::Incorrect,
-            Placement::Incorrect,
-            Placement::Correct,
-        ]);
-        let word = solver.suggest();
-        assert_eq!(word.as_str(), "funky");
+            let guess = Guess::new(&solution, word);
+            let SolverResult::Solving(s) = solver.report(guess) else {
+                panic!();
+            };
 
-        let solver = solver.report([
-            Placement::Incorrect,
-            Placement::Correct,
-            Placement::Correct,
-            Placement::Correct,
-            Placement::Correct,
-        ]);
-        let word = solver.suggest();
-        assert_eq!(word.as_str(), "hunky");
+            solver = s;
+        }
 
-        // TODO: figure out a good API so that once the solution is found you can't make more
-        // guesses.
-        // As is, this solver would panic if another guess was attempted.
+        assert_eq!(solution, solver.suggest());
+
+        let guess = Guess::Correct(solution);
+        let SolverResult::Solved { solution: s, .. } = solver.report(guess) else {
+            panic!();
+        };
+
+        assert_eq!(solution, s);
     }
 }

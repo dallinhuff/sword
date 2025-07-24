@@ -20,12 +20,10 @@ impl GameOutcome {
             .is_some_and(|g| g.word() == &self.solution)
     }
 
-    #[must_use]
     pub fn solution(&self) -> &Word {
         &self.solution
     }
 
-    #[must_use]
     pub fn guesses(&self) -> &[Guess] {
         &self.guesses
     }

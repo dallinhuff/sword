@@ -47,7 +47,6 @@ impl Guess {
         matches!(self, Guess::Correct(_))
     }
 
-    #[must_use]
     pub const fn word(&self) -> &Word {
         match self {
             Guess::Correct(w) | Guess::Incorrect(w, _) => w,

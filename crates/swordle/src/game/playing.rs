@@ -24,7 +24,6 @@ impl PlayingGame {
     }
 
     /// Returns the guesses the player has made already.
-    #[must_use]
     pub fn guesses(&self) -> &[Guess] {
         &self.guesses
     }

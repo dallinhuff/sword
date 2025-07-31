@@ -9,9 +9,7 @@ static GUESSES: LazyLock<Box<[Word]>> =
 
 /// Returns whether a given word is a valid solution/guess in the bank/dictionary.
 pub fn contains(word: Word) -> bool {
-    [&SOLUTIONS, &GUESSES]
-        .iter()
-        .any(|c| c.binary_search(&word).is_ok())
+    [&GUESSES].iter().any(|c| c.binary_search(&word).is_ok())
 }
 
 /// Returns a random word from the solutions bank.

@@ -17,7 +17,7 @@ pub enum Strategy {
 
 impl Strategy {
     const NORMAL_STR: &str = include_str!("../assets/strategy-normal.txt");
-    const HARD_STR: &str = ""; // TODO: get the asset file
+    const HARD_STR: &str = include_str!("../assets/strategy-hard.txt");
 
     const fn as_str(self) -> &'static str {
         match self {

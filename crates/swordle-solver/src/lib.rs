@@ -66,7 +66,7 @@ mod tests {
     fn suggest_works() {
         let mut solver = Solver::new(Strategy::Normal);
 
-        let suggestions = ["salet", "courd", "gimpy", "funky"];
+        let suggestions = ["tarse", "guild", "bumph", "huffy"];
         let solution = Word::new("hunky").unwrap();
 
         for suggestion in suggestions {
